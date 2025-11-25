@@ -1,0 +1,10 @@
+flask
+flask-cors
+openai
+beautifulsoup4
+requests
+pypdf
+python-dotenv
+werkzeug
+weasyprint
+markdown
