@@ -1,17 +1,34 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import ReactMarkdown from 'react-markdown';
+import TemplateSelector from './components/TemplateSelector';
+import AdvancedOptions from './components/AdvancedOptions';
+import ResultDisplay from './components/ResultDisplay';
 
 function App() {
     const [jobLink, setJobLink] = useState('');
     const [cvFile, setCvFile] = useState(null);
     const [profilePic, setProfilePic] = useState(null);
     const [templateId, setTemplateId] = useState('modern');
+    const [showAdvanced, setShowAdvanced] = useState(false);
+    const [basePrompt, setBasePrompt] = useState('');
+    const [temperature, setTemperature] = useState(0.7);
     const [generatedCv, setGeneratedCv] = useState('');
     const [explanation, setExplanation] = useState('');
     const [pdfBase64, setPdfBase64] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+
+    useEffect(() => {
+        const fetchPromptConfig = async () => {
+            try {
+                const response = await axios.get('http://localhost:5000/api/prompt-config');
+                setBasePrompt(response.data.defaultPrompt);
+            } catch (err) {
+                console.error('Failed to fetch prompt config', err);
+            }
+        };
+        fetchPromptConfig();
+    }, []);
 
     const handleFileChange = (e) => {
         if (e.target.files) {
@@ -43,6 +60,8 @@ function App() {
         formData.append('jobLink', jobLink);
         formData.append('cvFile', cvFile);
         formData.append('templateId', templateId);
+        formData.append('basePrompt', basePrompt);
+        formData.append('temperature', temperature);
         if (profilePic) {
             formData.append('profilePic', profilePic);
         }
@@ -55,7 +74,9 @@ function App() {
             });
             // The backend now returns structured data, but we might still want to show a simple preview
             // For now, let's assume the backend returns a 'preview' string or we just show the explanation
-            setGeneratedCv(response.data.generatedCv || "CV Generated Successfully! Download the PDF to view.");
+            setGeneratedCv(
+                response.data.generatedCv || 'CV Generated Successfully! Download the PDF to view.'
+            );
             setExplanation(response.data.explanation);
             setPdfBase64(response.data.pdfBase64);
         } catch (err) {
@@ -109,7 +130,9 @@ function App() {
                                     onChange={handleFileChange}
                                     required
                                 />
-                                <span className="file-name">{cvFile ? cvFile.name : 'Choose file...'}</span>
+                                <span className="file-name">
+                                    {cvFile ? cvFile.name : 'Choose file...'}
+                                </span>
                             </div>
                         </div>
 
@@ -122,31 +145,25 @@ function App() {
                                     accept="image/*"
                                     onChange={handleProfilePicChange}
                                 />
-                                <span className="file-name">{profilePic ? profilePic.name : 'Choose image...'}</span>
+                                <span className="file-name">
+                                    {profilePic ? profilePic.name : 'Choose image...'}
+                                </span>
                             </div>
                         </div>
 
-                        <div className="form-group">
-                            <label>Select Template</label>
-                            <div className="template-grid">
-                                {[
-                                    { id: 'modern', name: 'Modern', img: '/templates/modern.png' },
-                                    { id: 'classic', name: 'Classic', img: '/templates/classic.png' },
-                                    { id: 'creative', name: 'Creative', img: '/templates/creative.png' },
-                                    { id: 'professional', name: 'Professional', img: '/templates/professional.png' },
-                                    { id: 'elegant', name: 'Elegant', img: '/templates/elegant.png' },
-                                ].map((t) => (
-                                    <div
-                                        key={t.id}
-                                        className={`template-card ${templateId === t.id ? 'selected' : ''}`}
-                                        onClick={() => setTemplateId(t.id)}
-                                    >
-                                        <img src={t.img} alt={t.name} className="template-preview" />
-                                        <div className="template-name">{t.name}</div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
+                        <TemplateSelector
+                            selectedTemplate={templateId}
+                            onTemplateChange={setTemplateId}
+                        />
+
+                        <AdvancedOptions
+                            showAdvanced={showAdvanced}
+                            onToggle={() => setShowAdvanced(!showAdvanced)}
+                            basePrompt={basePrompt}
+                            onBasePromptChange={setBasePrompt}
+                            temperature={temperature}
+                            onTemperatureChange={setTemperature}
+                        />
 
                         <button type="submit" className="generate-btn" disabled={loading}>
                             {loading ? 'Generating...' : 'Generate Tailored CV'}
@@ -156,29 +173,12 @@ function App() {
                     </form>
                 </section>
 
-                {generatedCv && (
-                    <section className="result-section">
-                        <div className="result-header">
-                            <h2>Your Tailored CV</h2>
-                            {pdfBase64 && (
-                                <button onClick={handleDownloadPdf} className="download-btn">
-                                    Download PDF
-                                </button>
-                            )}
-                        </div>
-
-                        {explanation && (
-                            <div className="explanation-box">
-                                <h3>AI Explanation</h3>
-                                <p>{explanation}</p>
-                            </div>
-                        )}
-
-                        <div className="cv-preview">
-                            <ReactMarkdown>{generatedCv}</ReactMarkdown>
-                        </div>
-                    </section>
-                )}
+                <ResultDisplay
+                    generatedCv={generatedCv}
+                    explanation={explanation}
+                    pdfBase64={pdfBase64}
+                    onDownload={handleDownloadPdf}
+                />
             </main>
         </div>
     );

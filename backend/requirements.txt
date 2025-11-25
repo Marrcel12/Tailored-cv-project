@@ -8,3 +8,7 @@ python-dotenv
 werkzeug
 weasyprint
 markdown
+pytest
+pytest-mock
+ruff
+black
